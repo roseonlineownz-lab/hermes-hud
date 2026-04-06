@@ -81,7 +81,11 @@ def _parse_entries(content: str, source: str) -> list[MemoryEntry]:
     return [MemoryEntry(text=p, category=_categorize(p, source)) for p in parts]
 
 
-def collect_memory(hermes_dir: str | None = None) -> tuple[MemoryState, MemoryState]:
+def collect_memory(
+    hermes_dir: str | None = None,
+    memory_char_limit: int = MEMORY_MAX_CHARS,
+    user_char_limit: int = USER_MAX_CHARS,
+) -> tuple[MemoryState, MemoryState]:
     """Collect memory and user profile state.
 
     Returns:
@@ -102,7 +106,7 @@ def collect_memory(hermes_dir: str | None = None) -> tuple[MemoryState, MemorySt
     memory_state = MemoryState(
         entries=memory_entries,
         total_chars=len(memory_content),
-        max_chars=MEMORY_MAX_CHARS,
+        max_chars=memory_char_limit,
         source="memory",
     )
 
@@ -116,7 +120,7 @@ def collect_memory(hermes_dir: str | None = None) -> tuple[MemoryState, MemorySt
     user_state = MemoryState(
         entries=user_entries,
         total_chars=len(user_content),
-        max_chars=USER_MAX_CHARS,
+        max_chars=user_char_limit,
         source="user",
     )
 

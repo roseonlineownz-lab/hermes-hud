@@ -56,6 +56,7 @@ def collect_config(hermes_dir: str | None = None) -> ConfigState:
     terminal_section = data.get("terminal", {})
     compression_section = data.get("compression", {})
     checkpoints_section = data.get("checkpoints", {})
+    memory_section = data.get("memory", {})
 
     return ConfigState(
         model=model_section.get("default", "") if isinstance(model_section, dict) else str(model_section),
@@ -65,4 +66,6 @@ def collect_config(hermes_dir: str | None = None) -> ConfigState:
         max_turns=agent_section.get("max_turns", 0) if isinstance(agent_section, dict) else 0,
         compression_enabled=compression_section.get("enabled", False) if isinstance(compression_section, dict) else False,
         checkpoints_enabled=checkpoints_section.get("enabled", False) if isinstance(checkpoints_section, dict) else False,
+        memory_char_limit=memory_section.get("memory_char_limit", 2200) if isinstance(memory_section, dict) else 2200,
+        user_char_limit=memory_section.get("user_char_limit", 1375) if isinstance(memory_section, dict) else 1375,
     )

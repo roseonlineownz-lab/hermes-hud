@@ -15,16 +15,20 @@ from .collectors.timeline import build_timeline
 
 def collect_all(hermes_dir: str | None = None) -> HUDState:
     """Collect all data sources into a unified HUD state."""
+    # Config must run first so memory limits are known before parsing memory files
+    config = collect_config(hermes_dir)
+
     with ThreadPoolExecutor(max_workers=4) as pool:
-        f_mem = pool.submit(collect_memory, hermes_dir)
+        f_mem = pool.submit(
+            collect_memory, hermes_dir,
+            config.memory_char_limit, config.user_char_limit,
+        )
         f_skills = pool.submit(collect_skills, hermes_dir)
         f_sessions = pool.submit(collect_sessions, hermes_dir)
-        f_config = pool.submit(collect_config, hermes_dir)
 
     memory, user = f_mem.result()
     skills = f_skills.result()
     sessions = f_sessions.result()
-    config = f_config.result()
 
     state = HUDState(
         memory=memory,
