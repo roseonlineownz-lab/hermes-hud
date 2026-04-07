@@ -175,9 +175,10 @@ class AgentsPanel(Widget):
                 if sess.started_at:
                     ts = f"{sess.started_at:%m-%d %H:%M}"
 
-                title = _esc(sess.title or "untitled")
+                title = sess.title or "untitled"
                 if len(title) > 40:
                     title = title[:37] + "..."
+                title = _esc(title)
 
                 dur = ""
                 if sess.duration_minutes:

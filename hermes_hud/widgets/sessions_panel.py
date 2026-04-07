@@ -5,12 +5,12 @@ from __future__ import annotations
 from textual.app import ComposeResult
 from textual.widgets import Static
 
+from ..models import SessionsState
+
 
 def _esc(text: str) -> str:
     """Escape [ in user data so Textual never interprets it as markup."""
     return text.replace("[", "\\[")
-
-from ..models import SessionsState
 
 
 class SessionsPanel(Static):
