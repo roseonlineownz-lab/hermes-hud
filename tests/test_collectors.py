@@ -81,6 +81,22 @@ class TestSessionsCollector:
         assert s.started_at is not None
         assert s.message_count > 0
 
+    def test_session_model_uses_schema_column(self, fake_hermes_home, monkeypatch):
+        """Current Hermes stores model directly on sessions."""
+        import sqlite3
+
+        monkeypatch.setenv("HERMES_HOME", fake_hermes_home)
+        conn = sqlite3.connect(f"{fake_hermes_home}/state.db")
+        conn.execute("UPDATE sessions SET model = ?, model_config = NULL WHERE id = ?", ("current-model", "sess-2"))
+        conn.commit()
+        conn.close()
+
+        from hermes_hud.collectors.sessions import collect_sessions
+
+        sessions = collect_sessions()
+        row = next(s for s in sessions.sessions if s.id == "sess-2")
+        assert row.model == "current-model"
+
 
 class TestConfigCollector:
     def test_collects_config(self, env_override):

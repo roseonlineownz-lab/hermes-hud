@@ -60,7 +60,7 @@ def collect_sessions(hermes_dir: str | None = None) -> SessionsState:
                    message_count, tool_call_count,
                    input_tokens, output_tokens,
                    cache_read_tokens, cache_write_tokens,
-                   reasoning_tokens, estimated_cost_usd, model_config
+                   reasoning_tokens, estimated_cost_usd, model, model_config
             FROM sessions
             ORDER BY started_at DESC
         """)
@@ -73,9 +73,9 @@ def collect_sessions(hermes_dir: str | None = None) -> SessionsState:
                 ended = datetime.fromtimestamp(ended_raw) if ended_raw else None
 
                 # Try to extract model from model_config JSON
-                model = None
+                model = safe_get(row, "model")
                 mc_raw = safe_get(row, "model_config")
-                if mc_raw:
+                if not model and mc_raw:
                     try:
                         mc = json.loads(mc_raw)
                         model = mc.get("model") or mc.get("default")
