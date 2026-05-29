@@ -10,17 +10,33 @@ from ..collectors.health import HealthState
 # Provider → primary API key name
 _PROVIDER_KEY_MAP = {
     "anthropic": "ANTHROPIC_API_KEY",
+    "openai": "OPENAI_API_KEY",
     "openrouter": "OPENROUTER_API_KEY",
     "fireworks": "FIREWORKS_API_KEY",
     "xai": "XAI_API_KEY",
+    "grok": {"XAI_API_KEY", "GROK_API_KEY"},
+    "gemini": "GEMINI_API_KEY",
+    "qwen": {"QWEN_API_KEY", "DASHSCOPE_API_KEY", "QWEN_API_SECRET"},
+    "deepseek": "DEEPSEEK_API_KEY",
+    "volcengine": {"QWEN_API_KEY", "DASHSCOPE_API_KEY"},
 }
-_ALWAYS_CRITICAL = {"TELEGRAM_BOT_TOKEN"}
+_ALWAYS_CRITICAL = {"ANTHROPIC_API_KEY"}
 
 
 def _critical_keys(provider: str) -> set[str]:
     """Return the set of key names considered critical for the given provider."""
-    primary = _PROVIDER_KEY_MAP.get(provider.lower(), "ANTHROPIC_API_KEY")
-    return {primary} | _ALWAYS_CRITICAL
+    provider_normalized = provider.lower()
+    keys = _PROVIDER_KEY_MAP.get(provider_normalized, {"ANTHROPIC_API_KEY"})
+
+    if isinstance(keys, str):
+        keys_set = {keys}
+    else:
+        keys_set = set(keys)
+
+    if not keys_set:
+        keys_set = {"ANTHROPIC_API_KEY"}
+
+    return keys_set | _ALWAYS_CRITICAL
 
 
 class HealthPanel(Static):
@@ -42,10 +58,10 @@ class HealthPanel(Static):
 
         # Overall status
         if h.all_healthy:
-            yield Static("[bold green]⚿ SYSTEM HEALTH — ALL OK[/bold green]")
+            yield Static("[bold green]⚿ SYSTEM HEALTH — ALL CRITICAL OK[/bold green]")
         else:
-            problems = h.keys_missing + sum(1 for s in h.services if not s.running)
-            yield Static(f"[bold yellow]⚿ SYSTEM HEALTH — {problems} ISSUE{'S' if problems != 1 else ''}[/bold yellow]")
+            problems = h.required_keys_missing + h.services_required_missing
+            yield Static(f"[bold yellow]⚿ SYSTEM HEALTH — {problems} CRITICAL ISSUE{'S' if problems != 1 else ''}[/bold yellow]")
         yield Static("")
 
         # Model & Provider
@@ -63,12 +79,15 @@ class HealthPanel(Static):
         yield Static("  [bold underline]API Keys[/bold underline]")
         for key in h.keys:
             if key.present:
-                yield Static(f"  [green]✔ {key.name}[/green]")
+                req = "[blue]" if not key.required else ""
+                req_end = "[/blue]" if not key.required else ""
+                yield Static(f"  {req}[green]✔ {key.name}[/green]{req_end}")
             else:
+                color = "yellow" if not key.required else "red"
                 note = f" — {key.note}" if key.note else ""
-                yield Static(f"  [red]✗ {key.name}[/red][dim]{note}[/dim]")
+                yield Static(f"  [{color}]✗ {key.name}[/{color}][dim]{note}[/dim]")
         yield Static(
-            f"  [dim]{h.keys_ok} configured, {h.keys_missing} missing[/dim]"
+            f"  [dim]{h.keys_ok} configured, {h.keys_missing} missing | required: {h.required_keys_ok}/{h.required_keys_total}[/dim]"
         )
         yield Static("")
 
@@ -76,11 +95,17 @@ class HealthPanel(Static):
         yield Static("  [bold underline]Services[/bold underline]")
         for svc in h.services:
             if svc.running:
+                req = "[blue]" if not svc.required else ""
+                req_end = "[/blue]" if not svc.required else ""
                 pid_str = f" (pid {svc.pid})" if svc.pid else ""
-                yield Static(f"  [green]✔ {svc.name}{pid_str}[/green]")
+                yield Static(f"  {req}[green]✔ {svc.name}{pid_str}[green]{req_end}")
             else:
+                color = "yellow" if not svc.required else "red"
                 note = f" — {svc.note}" if svc.note else ""
-                yield Static(f"  [red]✗ {svc.name}[/red][dim]{note}[/dim]")
+                yield Static(f"  [{color}]✗ {svc.name}[/{color}][dim]{note}[/dim]")
+        yield Static(
+            f"  [dim]services: {h.services_ok}/{len(h.services)} | critical OK: {h.services_required_ok}/{h.services_required_total}[/dim]"
+        )
         yield Static("")
 
         # Quick diagnostics
@@ -98,19 +123,20 @@ class HealthPanel(Static):
                     missing_critical.append(k)
                 else:
                     missing_optional.append(k)
+
         if missing_critical:
             for k in missing_critical:
-                yield Static(f"  [red bold]⚠ {k.name} missing — core functionality affected[/red bold]")
+                yield Static(f"  [red bold]⚠ {k.name} missing — critical for current provider[/red bold]")
         if missing_optional:
             names = ", ".join(k.name for k in missing_optional)
-            yield Static(f"  [yellow]◐ Optional keys not set: {names}[/yellow]")
+            yield Static(f"  [blue]◐ Optional keys not set: {names}[/blue]")
 
-        dead_services = [s for s in h.services if not s.running and "unavailable" not in (s.note or "")]
+        dead_services = [s for s in h.services if s.required and not s.running]
         if dead_services:
             for s in dead_services:
-                yield Static(f"  [yellow]◐ {s.name} not running[/yellow]")
+                yield Static(f"  [red]◐ {s.name} required service down[/red]")
 
-        if h.all_healthy and not missing_optional:
-            yield Static("  [green]All systems nominal.[/green]")
-        elif h.all_healthy:
-            yield Static("  [green]Core systems OK. Optional keys above can be added when needed.[/green]")
+        if h.all_healthy:
+            yield Static("  [green]Core systems nominal. Optional items can be enabled when needed.[/green]")
+        else:
+            yield Static("  [yellow]Core stack has dependency issues. Check above items.[/yellow]")

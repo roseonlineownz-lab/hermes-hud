@@ -4,6 +4,9 @@
 from __future__ import annotations
 
 import os
+import json
+import sys
+from dataclasses import asdict
 from concurrent.futures import ThreadPoolExecutor
 
 from textual.app import App, ComposeResult
@@ -392,12 +395,40 @@ def main():
         print("  HERMES_HOME              Agent data directory (default: ~/.hermes)")
         print("  HERMES_HUD_PROJECTS_DIR  Projects scan directory (default: ~/projects)")
         print("  HERMES_HUD_NOBOOT        Skip boot animation in TUI")
+        print("  NOVA_VPS_HOST            Optional VPS host for remote stack checks")
+        print("  HERMES_HUD_VPS           Optional VPS host for remote stack checks")
+        print("  HERMES_HUD_REMOTE        Optional VPS host for remote stack checks")
         return
 
     if "--text" in sys.argv:
         from .collect import collect_all
+        from .collectors.health import collect_health
         state = collect_all()
-        print(state)
+        health = collect_health()
+        if "--json" in sys.argv:
+            print(json.dumps(asdict(state), default=str, indent=2, ensure_ascii=False))
+            return
+
+        print("HUDState: Hermes HUD (tekstmodus)")
+        print(f"Opgeslagen: {state.collected_at:%Y-%m-%d %H:%M:%S}")
+        print(f"Gebruiker: {state.user.source or 'onbekend'} | Provider: {state.config.provider or 'onbekend'}")
+        print(f"Model: {state.config.model or 'nvt'} | Backend: {state.config.backend or 'nvt'}")
+        print(f"Skills: {state.skills.total} totaal | Aangepast: {state.skills.custom_count}")
+        print(f"Geheugen: {state.memory.total_chars}/{state.memory.max_chars} chars ({state.memory.capacity_pct:.0f}%)")
+        print(f"Timeline: {len(state.timeline)} events | Sessies: {state.sessions.total_sessions}")
+        print(f"Toolcalls: {state.sessions.total_tool_calls} | Tokens: {state.sessions.total_tokens}")
+        print(f"Health status: {health.keys_ok}/{health.keys_ok + health.keys_missing} keys present | {health.services_ok}/{health.services_ok + health.services_missing} services present")
+
+        missing_health = [k.name for k in health.keys if k.required and not k.present]
+        if missing_health:
+            print(f"⚠ Kritieke keys missen: {', '.join(missing_health)}")
+        missing_services = [s.name for s in health.services if s.required and not s.running]
+        if missing_services:
+            print(f"⚠ Kritieke services missen: {', '.join(missing_services)}")
+
+        print("Laatste items:")
+        for item in state.memory.entries[:5]:
+            print(f"  - {item.category}: {item.text}")
         return
 
     if "--snapshot" in sys.argv:
