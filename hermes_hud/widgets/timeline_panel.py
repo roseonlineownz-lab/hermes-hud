@@ -6,6 +6,7 @@ from textual.app import ComposeResult
 from textual.widgets import Static
 
 from ..models import TimelineEvent
+from . import escape_markup as _esc
 
 # Styling by event type
 EVENT_STYLES = {
@@ -52,10 +53,10 @@ class TimelinePanel(Static):
                 style = EVENT_STYLES.get(event.event_type, "dim")
                 yield Static(
                     f"  [{style}]{event.icon} {event.timestamp:%Y-%m-%d %H:%M} │ "
-                    f"{event.title}[/{style}]"
+                    f"{_esc(event.title)}[/{style}]"
                 )
                 if event.detail:
-                    yield Static(f"    [dim]{event.detail}[/dim]")
+                    yield Static(f"    [dim]{_esc(event.detail)}[/dim]")
         else:
             yield Static("  [dim]No notable growth events yet.[/dim]")
 
@@ -74,6 +75,6 @@ class TimelinePanel(Static):
                 f"  [bold]{day}[/bold] — {len(day_events)} session{'s' if len(day_events) != 1 else ''}"
             )
             for e in day_events[:3]:  # show up to 3 per day
-                yield Static(f"    [dim]{e.icon} {e.title}[/dim]")
+                yield Static(f"    [dim]{e.icon} {_esc(e.title)}[/dim]")
             if len(day_events) > 3:
                 yield Static(f"    [dim]  ... and {len(day_events) - 3} more[/dim]")

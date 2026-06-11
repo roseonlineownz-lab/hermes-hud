@@ -7,7 +7,7 @@ from textual.containers import Horizontal, Vertical
 from textual.widgets import Static, ProgressBar, Label
 
 from ..models import HUDState
-from . import CAPACITY_RED_PCT, CAPACITY_YELLOW_PCT
+from . import CAPACITY_RED_PCT, CAPACITY_YELLOW_PCT, escape_markup as _esc
 
 
 class CapacityBar(Static):
@@ -66,9 +66,9 @@ class OverviewPanel(Static):
         yield Static(f"[bold]☤ HERMES SELF-IMPROVEMENT HUD[/bold]")
         yield Static("")
         yield Static(
-            f"  [bold cyan]{s.config.provider}[/bold cyan]/{s.config.model} "
-            f"│ backend: {s.config.backend} "
-            f"│ toolsets: {', '.join(s.config.toolsets)}"
+            f"  [bold cyan]{_esc(s.config.provider)}[/bold cyan]/{_esc(s.config.model)} "
+            f"│ backend: {_esc(s.config.backend)} "
+            f"│ toolsets: {_esc(', '.join(s.config.toolsets))}"
         )
         yield Static("")
         yield Static(

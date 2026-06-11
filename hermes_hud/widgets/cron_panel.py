@@ -6,6 +6,7 @@ from textual.app import ComposeResult
 from textual.widgets import Static
 
 from ..collectors.cron import CronJob, CronState
+from . import escape_markup as _esc
 
 
 def _format_time(iso_str: str | None) -> str:
@@ -74,27 +75,27 @@ class CronPanel(Static):
 
             yield Static(f"  [{style}]{'─' * 70}[/{style}]")
             yield Static(
-                f"  [{style}]{icon} {job.name}[/{style}]"
-                f"  [dim]({job.id})[/dim]"
+                f"  [{style}]{icon} {_esc(job.name)}[/{style}]"
+                f"  [dim]({_esc(job.id)})[/dim]"
             )
             yield Static("")
 
             # Schedule and delivery
             repeat_str = "forever" if job.repeat_total is None else f"{job.repeat_completed}/{job.repeat_total}"
             yield Static(
-                f"    Schedule:  [bold]{job.schedule_display}[/bold] │ "
+                f"    Schedule:  [bold]{_esc(job.schedule_display)}[/bold] │ "
                 f"Repeat: {repeat_str} │ "
-                f"Deliver: {job.deliver}"
+                f"Deliver: {_esc(job.deliver)}"
             )
 
             # Model/provider override
             if job.model or job.provider:
                 model_str = f"{job.provider or 'default'}/{job.model or 'default'}"
-                yield Static(f"    Model:     {model_str}")
+                yield Static(f"    Model:     {_esc(model_str)}")
 
             # Skills
             if job.skills:
-                yield Static(f"    Skills:    {', '.join(job.skills)}")
+                yield Static(f"    Skills:    {_esc(', '.join(job.skills))}")
 
             # Timing
             yield Static(
@@ -107,20 +108,20 @@ class CronPanel(Static):
                 status_style = "green" if job.last_status == "success" else "red"
                 yield Static(
                     f"    Last run:  {_format_time(job.last_run_at)} "
-                    f"[{status_style}]({job.last_status or 'unknown'})[/{status_style}]"
+                    f"[{status_style}]({_esc(job.last_status or 'unknown')})[/{status_style}]"
                 )
             else:
                 yield Static(f"    Last run:  [dim]not yet run[/dim]")
 
             # Error
             if job.last_error:
-                yield Static(f"    [red bold]Error: {job.last_error}[/red bold]")
+                yield Static(f"    [red bold]Error: {_esc(job.last_error)}[/red bold]")
 
             prompt_preview = (job.prompt[:120] + "...") if len(job.prompt) > 120 else job.prompt
-            yield Static(f"    Prompt:    [dim]{prompt_preview}[/dim]")
+            yield Static(f"    Prompt:    [dim]{_esc(prompt_preview)}[/dim]")
 
             # Paused reason
             if job.paused_reason:
-                yield Static(f"    [yellow]Paused: {job.paused_reason}[/yellow]")
+                yield Static(f"    [yellow]Paused: {_esc(job.paused_reason)}[/yellow]")
 
             yield Static("")

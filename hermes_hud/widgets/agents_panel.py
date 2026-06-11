@@ -10,10 +10,7 @@ from textual.widgets import Static
 
 from ..collectors.agents import AgentsState
 from ..collectors.cron import CronState
-
-def _esc(text: str) -> str:
-    """Escape [ in user data so Textual never interprets it as markup."""
-    return text.replace("[", "\\[")
+from . import escape_markup as _esc
 
 
 _ALERT_COLORS = {
@@ -59,7 +56,7 @@ class AgentsPanel(Widget):
             lines.append("")
             for alert in self.agents.operator_alerts:
                 color = _ALERT_COLORS.get(alert.alert_type, "dim")
-                jump = f"  [dim]→ {alert.jump_hint}[/dim]" if alert.jump_hint else ""
+                jump = f"  [dim]→ {_esc(alert.jump_hint)}[/dim]" if alert.jump_hint else ""
                 lines.append(
                     f"  [{color}]⚠[/{color}] [bold]{_esc(alert.agent_name)}[/bold]"
                     f"  [dim][{alert.alert_type}][/dim]"
@@ -71,10 +68,10 @@ class AgentsPanel(Widget):
         if live:
             for agent in live:
                 uptime_str = f"  [dim]up {agent.uptime}[/dim]" if agent.uptime else ""
-                cwd_str = f"  [dim]{agent.cwd}[/dim]" if agent.cwd else ""
+                cwd_str = f"  [dim]{_esc(agent.cwd)}[/dim]" if agent.cwd else ""
                 mem_str = f"  [dim]{agent.mem_mb} MB[/dim]" if agent.mem_mb else ""
                 pid_str = f" [dim]\\[{agent.pid}][/dim]" if agent.pid else ""
-                jump_str = f"  [dim]→ {agent.tmux_jump_hint}[/dim]" if agent.tmux_jump_hint else ""
+                jump_str = f"  [dim]→ {_esc(agent.tmux_jump_hint)}[/dim]" if agent.tmux_jump_hint else ""
 
                 lines.append(
                     f"  [green]  ▸[/green] [bold]{agent.name}[/bold]{pid_str}"
@@ -136,22 +133,22 @@ class AgentsPanel(Widget):
 
                 last_str = ""
                 if job.last_run_at:
-                    last_str = f"  [dim]last: {job.last_run_at[:16]}[/dim]"
+                    last_str = f"  [dim]last: {_esc(job.last_run_at[:16])}[/dim]"
 
                 err_str = ""
                 if job.last_error:
                     err_str = "  [bold red]✗ error[/bold red]"
 
                 lines.append(
-                    f"  {dot} [bold]{job.name}[/bold]  {status}"
-                    f"  [dim]every {sched}[/dim]{last_str}{err_str}"
+                    f"  {dot} [bold]{_esc(job.name)}[/bold]  {status}"
+                    f"  [dim]every {_esc(sched)}[/dim]{last_str}{err_str}"
                 )
 
                 if job.deliver and job.deliver != "local":
-                    lines.append(f"  [dim]    → delivers to {job.deliver}[/dim]")
+                    lines.append(f"  [dim]    → delivers to {_esc(job.deliver)}[/dim]")
 
                 if job.skills:
-                    lines.append(f"  [dim]    skills: {', '.join(job.skills)}[/dim]")
+                    lines.append(f"  [dim]    skills: {_esc(', '.join(job.skills))}[/dim]")
 
             lines.append("")
 
@@ -169,7 +166,7 @@ class AgentsPanel(Widget):
                 elif src == "cron":
                     src_badge = "[yellow]cron[/yellow]"
                 else:
-                    src_badge = f"[dim]{src}[/dim]"
+                    src_badge = f"[dim]{_esc(src)}[/dim]"
 
                 ts = ""
                 if sess.started_at:

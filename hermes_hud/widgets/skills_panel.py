@@ -6,6 +6,7 @@ from textual.app import ComposeResult
 from textual.widgets import Static
 
 from ..models import SkillsState
+from . import escape_markup as _esc
 
 
 class SkillsPanel(Static):
@@ -42,7 +43,7 @@ class SkillsPanel(Static):
         for cat, count in sorted(cat_counts.items(), key=lambda x: -x[1]):
             bar_len = int(count / max_count * 25)
             bar = "▓" * bar_len
-            yield Static(f"  {cat:<24} [cyan]{bar}[/cyan] {count}")
+            yield Static(f"  {_esc(cat):<24} [cyan]{bar}[/cyan] {count}")
 
         yield Static("")
 
@@ -52,5 +53,5 @@ class SkillsPanel(Static):
             custom_tag = " [green]★ custom[/green]" if skill.is_custom else ""
             yield Static(
                 f"  {skill.modified_at:%Y-%m-%d %H:%M} │ "
-                f"[bold]{skill.name}[/bold] ({skill.category}){custom_tag}"
+                f"[bold]{_esc(skill.name)}[/bold] ({_esc(skill.category)}){custom_tag}"
             )
