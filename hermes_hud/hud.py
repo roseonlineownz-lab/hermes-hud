@@ -13,11 +13,11 @@ from textual.theme import Theme
 from textual.widgets import Footer, Header, Static, TabbedContent, TabPane
 
 from .collect import collect_all
-from .collectors.cron import collect_cron
-from .collectors.projects import collect_projects
-from .collectors.health import collect_health
-from .collectors.corrections import collect_corrections
-from .models import HUDState
+from .collectors.cron import collect_cron, CronState
+from .collectors.projects import collect_projects, ProjectsState
+from .collectors.health import collect_health, HealthState
+from .collectors.corrections import collect_corrections, CorrectionsState
+from .models import HUDState, PatternsState, ProfilesState
 from .widgets.overview import OverviewPanel
 from .widgets.memory_panel import MemoryPanel
 from .widgets.skills_panel import SkillsPanel
@@ -29,7 +29,7 @@ from .widgets.projects_panel import ProjectsPanel
 from .widgets.health_panel import HealthPanel
 from .widgets.corrections_panel import CorrectionsPanel
 from .widgets.agents_panel import AgentsPanel
-from .collectors.agents import collect_agents
+from .collectors.agents import collect_agents, AgentsState
 from .collectors.profiles import collect_profiles
 from .collectors.patterns import collect_patterns
 from .widgets.boot_screen import OverviewNeofetch
@@ -281,6 +281,21 @@ class HermesHUD(App):
             scroll.mount(w)
         scroll.mount(self._status_line())
 
+    def _collect_safe(self, future, default, label: str):
+        """Unwrap a collector future, falling back to an empty default on failure.
+
+        One corrupt data source must not take down the whole dashboard —
+        the affected panel renders empty instead.
+        """
+        try:
+            return future.result()
+        except Exception as exc:
+            self.notify(
+                f"{label} data unavailable ({type(exc).__name__})",
+                severity="warning",
+            )
+            return default
+
     def _load_data(self) -> None:
         """Collect all data and rebuild the dashboard tabs."""
         with ThreadPoolExecutor(max_workers=8) as pool:
@@ -293,14 +308,14 @@ class HermesHUD(App):
             f_profiles = pool.submit(collect_profiles)
             f_patterns = pool.submit(collect_patterns)
 
-        self.state = f_state.result()
-        cron = f_cron.result()
-        projects = f_projects.result()
-        health = f_health.result()
-        corrections = f_corrections.result()
-        agents = f_agents.result()
-        profiles = f_profiles.result()
-        patterns = f_patterns.result()
+        self.state = self._collect_safe(f_state, HUDState(), "dashboard")
+        cron = self._collect_safe(f_cron, CronState(), "cron")
+        projects = self._collect_safe(f_projects, ProjectsState(), "projects")
+        health = self._collect_safe(f_health, HealthState(), "health")
+        corrections = self._collect_safe(f_corrections, CorrectionsState(), "corrections")
+        agents = self._collect_safe(f_agents, AgentsState(), "agents")
+        profiles = self._collect_safe(f_profiles, ProfilesState(), "profiles")
+        patterns = self._collect_safe(f_patterns, PatternsState(), "patterns")
 
         self._populate_tab("dashboard", [
             OverviewPanel(self.state),
@@ -395,9 +410,8 @@ def main():
         return
 
     if "--text" in sys.argv:
-        from .collect import collect_all
-        state = collect_all()
-        print(state)
+        from .collect import collect_all, print_summary
+        print_summary(collect_all())
         return
 
     if "--snapshot" in sys.argv:

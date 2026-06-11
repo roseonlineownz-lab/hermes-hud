@@ -122,6 +122,11 @@ def _check_pid_file(name: str, pid_file: Path) -> ServiceStatus:
 
     try:
         data = json.loads(pid_file.read_text())
+        # Classic pid files contain just the integer; JSON ones use {"pid": N}
+        if isinstance(data, int):
+            data = {"pid": data}
+        if not isinstance(data, dict):
+            return ServiceStatus(name=name, running=False, note="pid file unreadable")
         pid = data.get("pid")
         if pid:
             # Check if process is alive
@@ -132,7 +137,7 @@ def _check_pid_file(name: str, pid_file: Path) -> ServiceStatus:
             if result.returncode == 0 and result.stdout.strip():
                 return ServiceStatus(name=name, running=True, pid=pid)
             return ServiceStatus(name=name, running=False, pid=pid, note="pid file exists but process dead")
-    except (json.JSONDecodeError, OSError, subprocess.TimeoutExpired):
+    except (json.JSONDecodeError, OSError, ValueError, subprocess.TimeoutExpired):
         pass
 
     return ServiceStatus(name=name, running=False, note="pid file unreadable")

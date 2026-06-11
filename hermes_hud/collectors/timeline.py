@@ -38,13 +38,18 @@ def _session_events(sessions: SessionsState) -> list[TimelineEvent]:
     # Most active day
     if sessions.daily_stats:
         busiest = max(sessions.daily_stats, key=lambda d: d.messages)
-        events.append(TimelineEvent(
-            timestamp=datetime.strptime(busiest.date, "%Y-%m-%d"),
-            event_type="milestone",
-            title=f"Most active day: {busiest.date}",
-            detail=f"{busiest.sessions} sessions, {busiest.messages} messages, {busiest.tool_calls} tool calls",
-            icon="⚡",
-        ))
+        try:
+            busiest_ts = datetime.strptime(busiest.date, "%Y-%m-%d")
+        except (ValueError, TypeError):
+            busiest_ts = None  # date can be empty when started_at was NULL
+        if busiest_ts is not None:
+            events.append(TimelineEvent(
+                timestamp=busiest_ts,
+                event_type="milestone",
+                title=f"Most active day: {busiest.date}",
+                detail=f"{busiest.sessions} sessions, {busiest.messages} messages, {busiest.tool_calls} tool calls",
+                icon="⚡",
+            ))
 
     return events
 

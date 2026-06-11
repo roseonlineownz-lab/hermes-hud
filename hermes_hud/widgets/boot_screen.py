@@ -183,24 +183,35 @@ class OverviewNeofetch(Widget):
         await self._add("", delay, "neo-spacer")
 
     def _collect_data(self):
-        """Collect all data from collectors."""
+        """Collect all data from collectors.
+
+        Each collector is guarded individually — one corrupt data source
+        renders as an empty section instead of crashing the boot screen.
+        """
         from ..collectors.config import collect_config
         from ..collectors.memory import collect_memory
         from ..collectors.skills import collect_skills
         from ..collectors.sessions import collect_sessions
-        from ..collectors.health import collect_health
-        from ..collectors.projects import collect_projects
-        from ..collectors.cron import collect_cron
-        from ..collectors.corrections import collect_corrections
+        from ..collectors.health import collect_health, HealthState
+        from ..collectors.projects import collect_projects, ProjectsState
+        from ..collectors.cron import collect_cron, CronState
+        from ..collectors.corrections import collect_corrections, CorrectionsState
+        from ..models import ConfigState, MemoryState, SessionsState, SkillsState
 
-        config = collect_config()
-        memory, user = collect_memory()
-        skills = collect_skills()
-        sessions = collect_sessions()
-        health = collect_health()
-        projects = collect_projects()
-        cron = collect_cron()
-        corrections = collect_corrections()
+        def safe(fn, default):
+            try:
+                return fn()
+            except Exception:
+                return default
+
+        config = safe(collect_config, ConfigState())
+        memory, user = safe(collect_memory, (MemoryState(), MemoryState()))
+        skills = safe(collect_skills, SkillsState())
+        sessions = safe(collect_sessions, SessionsState())
+        health = safe(collect_health, HealthState())
+        projects = safe(collect_projects, ProjectsState())
+        cron = safe(collect_cron, CronState())
+        corrections = safe(collect_corrections, CorrectionsState())
 
         return config, memory, user, skills, sessions, health, projects, cron, corrections
 
