@@ -2,6 +2,7 @@
 
 import os
 from datetime import datetime
+from pathlib import Path
 from typing import Optional
 
 
@@ -23,6 +24,15 @@ def default_projects_dir(projects_dir: str | None = None) -> str:
     if projects_dir:
         return projects_dir
     return os.environ.get("HERMES_HUD_PROJECTS_DIR", os.path.expanduser("~/projects"))
+
+
+def read_text_safe(path, default: str = "") -> str:
+    """Read a UTF-8 text file, returning default if missing, unreadable,
+    a directory, or not valid UTF-8."""
+    try:
+        return Path(path).read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return default
 
 
 def safe_get(row, key, default=None):
@@ -52,6 +62,6 @@ def parse_timestamp(value) -> Optional[datetime]:
                 return datetime.fromtimestamp(float(value))
             except ValueError:
                 return datetime.fromisoformat(value)
-    except (ValueError, TypeError, OSError):
+    except (ValueError, TypeError, OSError, OverflowError):
         pass
     return None

@@ -198,7 +198,9 @@ def _check_server_status(base_url: str) -> str:
         health_url = f"{parsed.scheme}://{parsed.netloc}/health"
         resp = urlopen(health_url, timeout=2)
         return "running" if resp.status == 200 else "stopped"
-    except (URLError, OSError, ValueError):
+    except Exception:
+        # URLError/OSError/ValueError, plus http.client oddities like
+        # InvalidURL for a malformed port — a health probe must never raise
         return "stopped"
 
 
@@ -206,13 +208,14 @@ def _collect_single_profile(profile_dir: Path, name: str, is_default: bool = Fal
     """Collect all data for a single profile."""
     config = _read_config(profile_dir)
 
-    # Extract model config (nested under 'model' key)
+    # Extract model config (nested under 'model' key); a bare scalar or
+    # other non-dict value is treated as the model name itself
     model_cfg = config.get("model", {})
-    if isinstance(model_cfg, str):
-        model_cfg = {"default": model_cfg}
+    if not isinstance(model_cfg, dict):
+        model_cfg = {"default": str(model_cfg)}
 
-    model = model_cfg.get("default", config.get("model", ""))
-    provider = model_cfg.get("provider", config.get("provider", ""))
+    model = model_cfg.get("default") or ""
+    provider = model_cfg.get("provider") or config.get("provider") or ""
     base_url = model_cfg.get("base_url", "")
     ctx_len = 0
     try:

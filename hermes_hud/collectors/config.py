@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 
 from ..models import ConfigState
-from .utils import default_hermes_dir
+from .utils import default_hermes_dir, read_text_safe
 
 try:
     import yaml
@@ -34,11 +34,9 @@ def collect_config(hermes_dir: str | None = None) -> ConfigState:
     if hermes_dir is None:
         hermes_dir = default_hermes_dir(hermes_dir)
 
-    config_path = Path(hermes_dir) / "config.yaml"
-    if not config_path.exists():
+    content = read_text_safe(Path(hermes_dir) / "config.yaml")
+    if not content:
         return ConfigState()
-
-    content = config_path.read_text(encoding="utf-8")
 
     if yaml:
         try:

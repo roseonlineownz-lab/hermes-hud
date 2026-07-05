@@ -70,7 +70,7 @@ def _load_dotenv_keys(dotenv_path: str) -> set[str]:
     """Load key names from a .env file (not values)."""
     keys = set()
     try:
-        with open(dotenv_path) as f:
+        with open(dotenv_path, encoding="utf-8", errors="replace") as f:
             for line in f:
                 line = line.strip()
                 if line and not line.startswith("#") and "=" in line:
