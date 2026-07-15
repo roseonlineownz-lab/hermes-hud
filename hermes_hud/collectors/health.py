@@ -191,10 +191,23 @@ def _check_pid_file(name: str, pid_file: Path, required: bool = True) -> Service
 
 def _check_systemd_service(name: str, service: str, required: bool = True) -> ServiceStatus:
     """Check systemd user service status."""
+    env = os.environ.copy()
+    runtime_dir = env.get("XDG_RUNTIME_DIR")
+    if not runtime_dir:
+        candidate = Path(f"/run/user/{os.getuid()}")
+        if candidate.is_dir():
+            runtime_dir = str(candidate)
+            env["XDG_RUNTIME_DIR"] = runtime_dir
+
+    if runtime_dir and not env.get("DBUS_SESSION_BUS_ADDRESS"):
+        bus_path = Path(runtime_dir) / "bus"
+        if bus_path.exists():
+            env["DBUS_SESSION_BUS_ADDRESS"] = f"unix:path={bus_path}"
+
     try:
         result = subprocess.run(
             ["systemctl", "--user", "is-active", service],
-            capture_output=True, text=True, timeout=5,
+            capture_output=True, text=True, timeout=5, env=env,
         )
         is_active = result.stdout.strip() == "active"
         note = result.stdout.strip() or result.stderr.strip()
@@ -289,7 +302,7 @@ def collect_health(hermes_dir: str | None = None) -> HealthState:
     state.services.append(_check_systemd_service("OpenClaw Gateway", "openclaw-gateway", required=True))
     state.services.append(_check_systemd_service("OpenClaw Node", "openclaw-node", required=False))
     state.services.append(_check_systemd_service("ClawMem Serve", "clawmem-serve", required=True))
-    state.services.append(_check_systemd_service("Lead API", "faramix-lead-api", required=True))
+    state.services.append(_check_systemd_service("Lead API", "nova-lead-api", required=True))
     state.services.append(_check_systemd_service("Aion UI", "aionui-autologin", required=False))
     state.services.append(_check_systemd_service("Aion WebUI", "aionui-webui", required=False))
     state.services.append(_check_systemd_service("Hermes Office Adapter", "hermes-office-adapter", required=False))

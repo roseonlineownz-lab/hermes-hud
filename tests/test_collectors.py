@@ -192,6 +192,29 @@ class TestHealthCollector:
         health = collect_health()
         assert health is not None
 
+    def test_systemd_check_recovers_user_bus_for_noninteractive_runs(self, monkeypatch):
+        from hermes_hud.collectors import health as health_collector
+
+        monkeypatch.delenv("XDG_RUNTIME_DIR", raising=False)
+        monkeypatch.delenv("DBUS_SESSION_BUS_ADDRESS", raising=False)
+        monkeypatch.setattr(health_collector.os, "getuid", lambda: 1234)
+        monkeypatch.setattr(health_collector.Path, "is_dir", lambda self: True)
+        monkeypatch.setattr(health_collector.Path, "exists", lambda self: True)
+
+        captured = {}
+
+        def fake_run(*args, **kwargs):
+            captured.update(kwargs)
+            return type("Result", (), {"stdout": "active\n", "stderr": ""})()
+
+        monkeypatch.setattr(health_collector.subprocess, "run", fake_run)
+
+        result = health_collector._check_systemd_service("Lead API", "nova-lead-api")
+
+        assert result.running is True
+        assert captured["env"]["XDG_RUNTIME_DIR"] == "/run/user/1234"
+        assert captured["env"]["DBUS_SESSION_BUS_ADDRESS"] == "unix:path=/run/user/1234/bus"
+
 
 class TestCorrectionsCollector:
     def test_collects_corrections(self, env_override):
