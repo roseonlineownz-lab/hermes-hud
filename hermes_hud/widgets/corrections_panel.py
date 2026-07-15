@@ -8,6 +8,7 @@ from textual.app import ComposeResult
 from textual.widgets import Static
 
 from ..collectors.corrections import Correction, CorrectionsState
+from . import escape_markup as _esc
 
 
 SEVERITY_STYLES = {
@@ -89,10 +90,10 @@ class CorrectionsPanel(Static):
 
                 # Detail — show the full correction text wrapped
                 for line in textwrap.fill(cor.detail, width=90).split("\n"):
-                    yield Static(f"    [{style}]{line}[/{style}]")
+                    yield Static(f"    [{style}]{_esc(line)}[/{style}]")
 
                 # Session context
                 if cor.session_title:
-                    yield Static(f"    [dim]↳ session: {cor.session_title}[/dim]")
+                    yield Static(f"    [dim]↳ session: {_esc(cor.session_title)}[/dim]")
 
                 yield Static("")

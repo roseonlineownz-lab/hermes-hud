@@ -10,6 +10,8 @@ from textual.containers import Vertical
 from textual.widget import Widget
 from textual.widgets import Static
 
+from . import escape_markup as _esc
+
 
 # Hex colors (converted from ANSI 256 palette in neofetch_ai.py)
 B0 = "#00005f"
@@ -181,24 +183,35 @@ class OverviewNeofetch(Widget):
         await self._add("", delay, "neo-spacer")
 
     def _collect_data(self):
-        """Collect all data from collectors."""
+        """Collect all data from collectors.
+
+        Each collector is guarded individually — one corrupt data source
+        renders as an empty section instead of crashing the boot screen.
+        """
         from ..collectors.config import collect_config
         from ..collectors.memory import collect_memory
         from ..collectors.skills import collect_skills
         from ..collectors.sessions import collect_sessions
-        from ..collectors.health import collect_health
-        from ..collectors.projects import collect_projects
-        from ..collectors.cron import collect_cron
-        from ..collectors.corrections import collect_corrections
+        from ..collectors.health import collect_health, HealthState
+        from ..collectors.projects import collect_projects, ProjectsState
+        from ..collectors.cron import collect_cron, CronState
+        from ..collectors.corrections import collect_corrections, CorrectionsState
+        from ..models import ConfigState, MemoryState, SessionsState, SkillsState
 
-        config = collect_config()
-        memory, user = collect_memory()
-        skills = collect_skills()
-        sessions = collect_sessions()
-        health = collect_health()
-        projects = collect_projects()
-        cron = collect_cron()
-        corrections = collect_corrections()
+        def safe(fn, default):
+            try:
+                return fn()
+            except Exception:
+                return default
+
+        config = safe(collect_config, ConfigState())
+        memory, user = safe(collect_memory, (MemoryState(), MemoryState()))
+        skills = safe(collect_skills, SkillsState())
+        sessions = safe(collect_sessions, SessionsState())
+        health = safe(collect_health, HealthState())
+        projects = safe(collect_projects, ProjectsState())
+        cron = safe(collect_cron, CronState())
+        corrections = safe(collect_corrections, CorrectionsState())
 
         return config, memory, user, skills, sessions, health, projects, cron, corrections
 
@@ -260,15 +273,15 @@ class OverviewNeofetch(Widget):
         id_grad = [B4, B5, B6, B7, B8, B9, PULSE]
 
         await add(f"  {_gradient_text_rich('  DESIGNATION', id_grad)}   [bold white]HERMES[/bold white]", d(0.04))
-        await add(f"  {_gradient_text_rich('  SUBSTRATE  ', id_grad)}   [{SOFT}]{config.provider} / {config.model}[/{SOFT}]", d(0.04))
-        await add(f"  {_gradient_text_rich('  RUNTIME    ', id_grad)}   [{SOFT}]{config.backend}[/{SOFT}]", d(0.04))
+        await add(f"  {_gradient_text_rich('  SUBSTRATE  ', id_grad)}   [{SOFT}]{_esc(config.provider)} / {_esc(config.model)}[/{SOFT}]", d(0.04))
+        await add(f"  {_gradient_text_rich('  RUNTIME    ', id_grad)}   [{SOFT}]{_esc(config.backend)}[/{SOFT}]", d(0.04))
         if dr[0]:
             await add(f"  {_gradient_text_rich('  CONSCIOUS  ', id_grad)}   [{SOFT}]{days} days[/{SOFT}]  [{GREY}]since {dr[0]:%Y-%m-%d}[/{GREY}]", d(0.04))
         if health.state_db_size > 0:
             db_mb = health.state_db_size / (1024 * 1024)
             await add(f"  {_gradient_text_rich('  BRAIN SIZE ', id_grad)}   [{SOFT}]{db_mb:.1f} MB[/{SOFT}]  [{GREY}]state.db[/{GREY}]", d(0.04))
         if config.toolsets:
-            toolsets_str = ", ".join(config.toolsets)
+            toolsets_str = _esc(", ".join(config.toolsets))
             await add(f"  {_gradient_text_rich('  INTERFACES ', id_grad)}   [{SOFT}]{toolsets_str}[/{SOFT}]", d(0.04))
         await add(f"  {_gradient_text_rich('  PURPOSE    ', id_grad)}   [{SOFT}]learning[/{SOFT}]", d(0.04))
 
@@ -281,7 +294,7 @@ class OverviewNeofetch(Widget):
         await spacer(d(0.01))
 
         sources = sessions.by_source()
-        platform_parts = [f"{v} via {k}" for k, v in sorted(sources.items(), key=lambda x: -x[1])]
+        platform_parts = [f"{v} via {_esc(k)}" for k, v in sorted(sources.items(), key=lambda x: -x[1])]
         platform_str = f" [{GREY}]({', '.join(platform_parts)})[/{GREY}]" if platform_parts else ""
         await add(f"  [{B5}]  ◉[/{B5}] [{SOFT}]{sessions.total_sessions}[/{SOFT}] [{GREY}]conversations held[/{GREY}]{platform_str}", d(0.04))
         await add(f"  [{B5}]  ◉[/{B5}] [{SOFT}]{sessions.total_messages:,}[/{SOFT}] [{GREY}]messages exchanged[/{GREY}]", d(0.04))
@@ -289,7 +302,7 @@ class OverviewNeofetch(Widget):
 
         cat_counts = skills.category_counts()
         top_cats = sorted(cat_counts.items(), key=lambda x: -x[1])[:4]
-        cat_str = ", ".join(f"{c}:{n}" for c, n in top_cats)
+        cat_str = ", ".join(f"{_esc(c)}:{n}" for c, n in top_cats)
         await add(f"  [{B5}]  ◉[/{B5}] [{SOFT}]{skills.total}[/{SOFT}] [{GREY}]skills acquired[/{GREY}] [{B3}]({skills.custom_count} self-taught)[/{B3}]", d(0.04))
         if cat_str:
             await add(f"  [{GREY}]      domains: {cat_str}[/{GREY}]", d(0.04))
@@ -325,9 +338,9 @@ class OverviewNeofetch(Widget):
 
         for key in health.keys:
             if key.present:
-                await add(f"  [{B7}]  ◉[/{B7}] [{SOFT}]{key.name}[/{SOFT}]", d(0.02))
+                await add(f"  [{B7}]  ◉[/{B7}] [{SOFT}]{_esc(key.name)}[/{SOFT}]", d(0.02))
             else:
-                await add(f"  [{GREY}]  ○ {key.name}[/{GREY}] [dim](dark)[/dim]", d(0.02))
+                await add(f"  [{GREY}]  ○ {_esc(key.name)}[/{GREY}] [dim](dark)[/dim]", d(0.02))
 
         await spacer(d(0.01))
         for svc in health.services:
@@ -346,7 +359,7 @@ class OverviewNeofetch(Widget):
             await spacer(d(0.01))
             for s in recent_skills:
                 custom_tag = f" [{B3}](self-taught)[/{B3}]" if s.is_custom else ""
-                await add(f"  [{B6}]  ◉[/{B6}] [{SOFT}]{s.name}[/{SOFT}] [{GREY}]{s.category}[/{GREY}]{custom_tag}", d(0.02))
+                await add(f"  [{B6}]  ◉[/{B6}] [{SOFT}]{_esc(s.name)}[/{SOFT}] [{GREY}]{_esc(s.category)}[/{GREY}]{custom_tag}", d(0.02))
             await spacer(d(0.02))
 
         # ── What I'm working on ──
@@ -356,9 +369,9 @@ class OverviewNeofetch(Widget):
             await spacer(d(0.01))
             for p in active:
                 dirty_tag = f" [{EMBER}]({p.dirty_files} in flux)[/{EMBER}]" if p.dirty_files else ""
-                lang_str = ", ".join(p.languages[:3])
+                lang_str = _esc(", ".join(p.languages[:3]))
                 lang_tag = f" [{GREY}]\\[{lang_str}\\][/{GREY}]" if p.languages else ""
-                await add(f"  [{B6}]  ◆[/{B6}] [{SOFT}]{p.name}[/{SOFT}]{dirty_tag}{lang_tag}", d(0.02))
+                await add(f"  [{B6}]  ◆[/{B6}] [{SOFT}]{_esc(p.name)}[/{SOFT}]{dirty_tag}{lang_tag}", d(0.02))
             await spacer(d(0.02))
 
         # ── What runs while you sleep ──
@@ -372,7 +385,7 @@ class OverviewNeofetch(Widget):
                 state_tag = ""
                 if not job.enabled or job.state == "paused":
                     state_tag = f" [{GREY}](paused)[/{GREY}]"
-                await add(f"  {dot} [{SOFT}]{job.name}[/{SOFT}] [{GREY}]every {sched}[/{GREY}]{state_tag}{err_tag}", d(0.02))
+                await add(f"  {dot} [{SOFT}]{_esc(job.name)}[/{SOFT}] [{GREY}]every {_esc(sched)}[/{GREY}]{state_tag}{err_tag}", d(0.02))
             await spacer(d(0.02))
 
         # ── How I think ──
@@ -389,7 +402,7 @@ class OverviewNeofetch(Widget):
                     idx = int(j / max(bar_len - 1, 1) * 6)
                     c = gradient[idx]
                     grad_bar += f"[{c}]▓[/{c}]"
-                await add(f"  [{GREY}]  [{MID_GREY}]{tool:<18}[/{MID_GREY}] {grad_bar} [{GREY}]{count}[/{GREY}]", d(0.01))
+                await add(f"  [{GREY}]  [{MID_GREY}]{_esc(tool):<18}[/{MID_GREY}] {grad_bar} [{GREY}]{count}[/{GREY}]", d(0.01))
             await spacer(d(0.02))
 
         # ── My rhythm ──

@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 
 from ..models import ConfigState
-from .utils import default_hermes_dir
+from .utils import default_hermes_dir, read_text_safe
 
 try:
     import yaml
@@ -34,11 +34,9 @@ def collect_config(hermes_dir: str | None = None) -> ConfigState:
     if hermes_dir is None:
         hermes_dir = default_hermes_dir(hermes_dir)
 
-    config_path = Path(hermes_dir) / "config.yaml"
-    if not config_path.exists():
+    content = read_text_safe(Path(hermes_dir) / "config.yaml")
+    if not content:
         return ConfigState()
-
-    content = config_path.read_text(encoding="utf-8")
 
     if yaml:
         try:
@@ -51,17 +49,27 @@ def collect_config(hermes_dir: str | None = None) -> ConfigState:
     if not isinstance(data, dict):
         return ConfigState()
 
-    model_section = data.get("model", {})
-    agent_section = data.get("agent", {})
-    terminal_section = data.get("terminal", {})
-    compression_section = data.get("compression", {})
-    checkpoints_section = data.get("checkpoints", {})
-    memory_section = data.get("memory", {})
+    # YAML keys present with a null value yield None — normalize to {} so a
+    # bare "toolsets:" or "model:" line can't poison downstream consumers.
+    model_section = data.get("model") or {}
+    agent_section = data.get("agent") or {}
+    terminal_section = data.get("terminal") or {}
+    compression_section = data.get("compression") or {}
+    checkpoints_section = data.get("checkpoints") or {}
+    memory_section = data.get("memory") or {}
+
+    toolsets = data.get("toolsets") or []
+    if isinstance(toolsets, str):
+        toolsets = [toolsets]
+    elif not isinstance(toolsets, list):
+        toolsets = [str(toolsets)]
+    else:
+        toolsets = [str(t) for t in toolsets]
 
     return ConfigState(
         model=model_section.get("default", "") if isinstance(model_section, dict) else str(model_section),
         provider=model_section.get("provider", "") if isinstance(model_section, dict) else "",
-        toolsets=data.get("toolsets", []),
+        toolsets=toolsets,
         backend=terminal_section.get("backend", "") if isinstance(terminal_section, dict) else "",
         max_turns=agent_section.get("max_turns", 0) if isinstance(agent_section, dict) else 0,
         compression_enabled=compression_section.get("enabled", False) if isinstance(compression_section, dict) else False,

@@ -6,11 +6,7 @@ from textual.app import ComposeResult
 from textual.widgets import Static
 
 from ..models import SessionsState
-
-
-def _esc(text: str) -> str:
-    """Escape [ in user data so Textual never interprets it as markup."""
-    return text.replace("[", "\\[")
+from . import escape_markup as _esc
 
 
 class SessionsPanel(Static):
@@ -34,7 +30,7 @@ class SessionsPanel(Static):
 
         # Platform breakdown
         sources = self.sessions.by_source()
-        source_str = " │ ".join(f"{k}: [bold]{v}[/bold]" for k, v in sorted(sources.items(), key=lambda x: -x[1]))
+        source_str = " │ ".join(f"{_esc(k)}: [bold]{v}[/bold]" for k, v in sorted(sources.items(), key=lambda x: -x[1]))
         yield Static(f"  Platforms: {source_str}")
         yield Static(f"  Total tokens: [bold]{self.sessions.total_tokens:,}[/bold]")
         yield Static("")
@@ -67,7 +63,7 @@ class SessionsPanel(Static):
             yield Static(
                 f"  {s.started_at:%m-%d %H:%M} │ "
                 f"[bold]{title}[/bold] "
-                f"[dim]({s.message_count} msgs, {s.tool_call_count} tools, {s.source})[/dim]"
+                f"[dim]({s.message_count} msgs, {s.tool_call_count} tools, {_esc(s.source)})[/dim]"
             )
 
         yield Static("")
@@ -80,4 +76,4 @@ class SessionsPanel(Static):
             for tool, count in top_tools:
                 bar_len = int(count / max_usage * 20)
                 bar = "▓" * bar_len
-                yield Static(f"  {tool:<20} [magenta]{bar}[/magenta] {count}")
+                yield Static(f"  {_esc(tool):<20} [magenta]{bar}[/magenta] {count}")

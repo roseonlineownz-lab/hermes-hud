@@ -71,32 +71,51 @@ def collect_cron(hermes_dir: str | None = None) -> CronState:
 
     try:
         data = json.loads(jobs_file.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
+    except (json.JSONDecodeError, OSError, UnicodeDecodeError):
         return CronState()
 
+    # jobs.json is usually {"jobs": [...]} but a bare list also occurs
+    if isinstance(data, list):
+        data = {"jobs": data}
+    if not isinstance(data, dict):
+        return CronState()
+
+    raw_jobs = data.get("jobs")
+    if not isinstance(raw_jobs, list):
+        raw_jobs = []
+
     jobs = []
-    for j in data.get("jobs", []):
-        repeat = j.get("repeat", {})
-        schedule = j.get("schedule", {})
+    for j in raw_jobs:
+        if not isinstance(j, dict):
+            continue
+        repeat = j.get("repeat")
+        if not isinstance(repeat, dict):
+            repeat = {}
+        schedule = j.get("schedule")
+        if not isinstance(schedule, dict):
+            schedule = {}
+        skills = j.get("skills")
+        if not isinstance(skills, list):
+            skills = []
 
         jobs.append(CronJob(
-            id=j.get("id", ""),
-            name=j.get("name", "unnamed"),
-            prompt=j.get("prompt", ""),
-            schedule_display=j.get("schedule_display", schedule.get("display", "unknown")),
-            enabled=j.get("enabled", True),
-            state=j.get("state", "unknown"),
+            id=j.get("id") or "",
+            name=j.get("name") or "unnamed",
+            prompt=j.get("prompt") or "",
+            schedule_display=j.get("schedule_display") or schedule.get("display") or "unknown",
+            enabled=bool(j.get("enabled", True)),
+            state=j.get("state") or "unknown",
             created_at=j.get("created_at"),
             next_run_at=j.get("next_run_at"),
             last_run_at=j.get("last_run_at"),
             last_status=j.get("last_status"),
             last_error=j.get("last_error"),
-            deliver=j.get("deliver", "local"),
+            deliver=j.get("deliver") or "local",
             repeat_total=repeat.get("times"),
-            repeat_completed=repeat.get("completed", 0),
+            repeat_completed=repeat.get("completed") or 0,
             model=j.get("model"),
             provider=j.get("provider"),
-            skills=j.get("skills", []),
+            skills=skills,
             paused_reason=j.get("paused_reason"),
         ))
 

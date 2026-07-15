@@ -122,7 +122,7 @@ def _load_dotenv_keys(dotenv_path: str) -> set[str]:
     """Load key names from a .env file (not values)."""
     keys = set()
     try:
-        with open(dotenv_path) as f:
+        with open(dotenv_path, encoding="utf-8", errors="replace") as f:
             for line in f:
                 line = line.strip()
                 if line and not line.startswith("#") and "=" in line:
@@ -174,6 +174,11 @@ def _check_pid_file(name: str, pid_file: Path, required: bool = True) -> Service
 
     try:
         data = json.loads(pid_file.read_text())
+        # Classic pid files contain just the integer; JSON ones use {"pid": N}
+        if isinstance(data, int):
+            data = {"pid": data}
+        if not isinstance(data, dict):
+            return ServiceStatus(name=name, running=False, note="pid file unreadable")
         pid = data.get("pid")
         if pid:
             result = subprocess.run(
@@ -183,7 +188,7 @@ def _check_pid_file(name: str, pid_file: Path, required: bool = True) -> Service
             if result.returncode == 0 and result.stdout.strip():
                 return ServiceStatus(name=name, running=True, required=required, pid=pid)
             return ServiceStatus(name=name, running=False, required=required, pid=pid, note="pid file exists but process dead")
-    except (json.JSONDecodeError, OSError, subprocess.TimeoutExpired):
+    except (json.JSONDecodeError, OSError, ValueError, subprocess.TimeoutExpired):
         pass
 
     return ServiceStatus(name=name, running=False, required=required, note="pid file unreadable")

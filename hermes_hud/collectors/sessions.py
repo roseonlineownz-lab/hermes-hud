@@ -5,11 +5,10 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
-from datetime import datetime
 from pathlib import Path
 
 from ..models import DailyStats, SessionInfo, SessionsState
-from .utils import default_hermes_dir, safe_get
+from .utils import default_hermes_dir, parse_timestamp, safe_get
 
 
 def _extract_tool_usage(db_path: str) -> dict[str, int]:
@@ -67,10 +66,12 @@ def collect_sessions(hermes_dir: str | None = None) -> SessionsState:
 
         for row in cursor.fetchall():
             try:
-                started_raw = safe_get(row, "started_at", 0)
-                started = datetime.fromtimestamp(started_raw)
-                ended_raw = safe_get(row, "ended_at")
-                ended = datetime.fromtimestamp(ended_raw) if ended_raw else None
+                # Handles unix int/float and ISO strings; rows without a
+                # usable start time are skipped rather than dated 1970.
+                started = parse_timestamp(safe_get(row, "started_at"))
+                if started is None:
+                    continue
+                ended = parse_timestamp(safe_get(row, "ended_at"))
 
                 # Try to extract model from model_config JSON
                 model = safe_get(row, "model")
@@ -115,8 +116,11 @@ def collect_sessions(hermes_dir: str | None = None) -> SessionsState:
 
         for row in cursor.fetchall():
             try:
+                day = safe_get(row, "day", "")
+                if not day:
+                    continue  # NULL/non-numeric started_at yields no date bucket
                 daily_stats.append(DailyStats(
-                    date=safe_get(row, "day", ""),
+                    date=day,
                     sessions=safe_get(row, "sessions", 0),
                     messages=safe_get(row, "msgs", 0),
                     tool_calls=safe_get(row, "tools", 0),

@@ -62,21 +62,6 @@ CORRECTION_KEYWORDS = [
     (r"blocks patches", "minor"),
 ]
 
-# Patterns in session transcripts indicating pushback/correction
-SESSION_CORRECTION_PATTERNS = [
-    r"that'?s (?:not |in)?correct",
-    r"you'?re wrong",
-    r"no,?\s+(?:it|that|the)",
-    r"actually,?\s+",
-    r"that'?s not (?:right|true|how)",
-    r"verify (?:that|this|before)",
-    r"are you sure",
-    r"double.?check",
-    r"(?:incorrect|wrong) (?:about|recommendation|suggestion)",
-    r"push.?back",
-]
-
-
 def _extract_memory_corrections(hermes_dir: str) -> list[Correction]:
     """Extract corrections from memory files."""
     from .memory import collect_memory
@@ -118,22 +103,7 @@ def _extract_session_corrections(hermes_dir: str) -> list[Correction]:
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
 
-        # Search user messages for correction patterns
-        for pattern in SESSION_CORRECTION_PATTERNS:
-            cursor.execute("""
-                SELECT m.content, m.timestamp, s.title, s.id
-                FROM messages m
-                JOIN sessions s ON m.session_id = s.id
-                WHERE m.role = 'user'
-                AND m.content IS NOT NULL
-                AND m.content REGEXP ?
-                ORDER BY m.timestamp DESC
-                LIMIT 5
-            """, (pattern,))
-            # REGEXP might not be available, fall back to LIKE
-            pass
-
-        # Simpler approach: search with FTS if available, else LIKE
+        # Keyword search with LIKE (Python's sqlite3 has no REGEXP function)
         for pattern_word in ["wrong", "incorrect", "verify", "actually", "not right", "not correct", "not true", "push back"]:
             try:
                 cursor.execute("""

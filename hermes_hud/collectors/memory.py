@@ -7,7 +7,7 @@ import re
 from pathlib import Path
 
 from ..models import MemoryEntry, MemoryState
-from .utils import default_hermes_dir
+from .utils import default_hermes_dir, read_text_safe
 
 # Capacity limits (from Hermes system prompt injection)
 MEMORY_MAX_CHARS = 2200
@@ -97,11 +97,7 @@ def collect_memory(
     memories_dir = Path(hermes_dir) / "memories"
 
     # Parse MEMORY.md
-    memory_path = memories_dir / "MEMORY.md"
-    memory_content = ""
-    if memory_path.exists():
-        memory_content = memory_path.read_text(encoding="utf-8")
-
+    memory_content = read_text_safe(memories_dir / "MEMORY.md")
     memory_entries = _parse_entries(memory_content, "memory")
     memory_state = MemoryState(
         entries=memory_entries,
@@ -111,11 +107,7 @@ def collect_memory(
     )
 
     # Parse USER.md
-    user_path = memories_dir / "USER.md"
-    user_content = ""
-    if user_path.exists():
-        user_content = user_path.read_text(encoding="utf-8")
-
+    user_content = read_text_safe(memories_dir / "USER.md")
     user_entries = _parse_entries(user_content, "user")
     user_state = MemoryState(
         entries=user_entries,

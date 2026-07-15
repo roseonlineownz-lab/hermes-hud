@@ -140,7 +140,10 @@ class TestCLIEntryPoint:
             main()
 
         captured = capsys.readouterr()
-        assert "HUDState" in captured.out
+        assert "=== Hermes HUD State" in captured.out
+        assert "◆ Config:" in captured.out
+        # the raw dataclass repr must not be dumped
+        assert "HUDState(" not in captured.out
 
 
 class TestModels:

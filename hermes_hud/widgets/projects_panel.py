@@ -6,6 +6,7 @@ from textual.app import ComposeResult
 from textual.widgets import Static
 
 from ..collectors.projects import ProjectInfo, ProjectsState
+from . import escape_markup as _esc
 
 
 ACTIVITY_STYLES = {
@@ -77,19 +78,19 @@ class ProjectsPanel(Static):
         if no_git:
             yield Static("  [dim]─ NO GIT[/dim]")
             for p in no_git:
-                langs = f" [{', '.join(p.languages)}]" if p.languages else ""
+                langs = f" \\[{', '.join(p.languages)}]" if p.languages else ""
                 mod = f" (modified {p.last_modified:%b %d})" if p.last_modified else ""
-                yield Static(f"    [dim]{p.name}{langs}{mod}[/dim]")
+                yield Static(f"    [dim]{_esc(p.name)}{langs}{mod}[/dim]")
 
     def _render_project(self, p: ProjectInfo, color: str) -> list:
         """Render a project with full detail."""
         # Name + branch + status
         dirty_tag = f" [red]({p.dirty_files} dirty)[/red]" if p.dirty_files > 0 else " [green](clean)[/green]"
-        langs = f" [dim]{', '.join(p.languages)}[/dim]" if p.languages else ""
+        langs = f" [dim]{_esc(', '.join(p.languages))}[/dim]" if p.languages else ""
 
         yield Static(
-            f"    [{color} bold]{p.name}[/{color} bold]"
-            f"  [dim]({p.branch})[/dim]{dirty_tag}{langs}"
+            f"    [{color} bold]{_esc(p.name)}[/{color} bold]"
+            f"  [dim]({_esc(p.branch)})[/dim]{dirty_tag}{langs}"
         )
 
         # Last commit
@@ -98,7 +99,7 @@ class ProjectsPanel(Static):
             if len(p.last_commit_msg) > 70:
                 msg += "..."
             yield Static(
-                f"      [dim]{p.last_commit_ago} │[/dim] {msg}"
+                f"      [dim]{p.last_commit_ago} │[/dim] {_esc(msg)}"
             )
 
         # Stats
@@ -120,5 +121,5 @@ class ProjectsPanel(Static):
         ago = f" — {p.last_commit_ago}" if p.last_commit_ago else ""
 
         yield Static(
-            f"    [dim]{p.name} ({p.branch}){dirty_tag}{ago}[/dim]"
+            f"    [dim]{_esc(p.name)} ({_esc(p.branch)}){dirty_tag}{ago}[/dim]"
         )

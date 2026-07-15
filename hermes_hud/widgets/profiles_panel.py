@@ -9,7 +9,7 @@ from textual.widget import Widget
 from textual.widgets import Static
 
 from ..models import ProfileInfo, ProfilesState
-from . import CAPACITY_RED_PCT, CAPACITY_YELLOW_PCT
+from . import CAPACITY_RED_PCT, CAPACITY_YELLOW_PCT, escape_markup as _esc
 
 
 def _capacity_bar(pct: float, width: int = 20) -> str:
@@ -74,7 +74,7 @@ def _render_profile_card(p: ProfileInfo) -> str:
     lines = []
 
     # ── Header ──
-    name_display = p.name
+    name_display = _esc(p.name)
     if p.is_default:
         name_display += "  [dim](default)[/dim]"
 
@@ -82,7 +82,7 @@ def _render_profile_card(p: ProfileInfo) -> str:
     if p.is_local:
         badge = "[cyan]local[/cyan]"
     else:
-        badge = f"[magenta]{p.provider}[/magenta]"
+        badge = f"[magenta]{_esc(p.provider)}[/magenta]"
 
     # Active indicator
     active_parts = []
@@ -100,24 +100,24 @@ def _render_profile_card(p: ProfileInfo) -> str:
     lines.append("")
 
     # ── Model & Backend ──
-    model_line = f"    Model    [bold]{p.model or 'not set'}[/bold]"
+    model_line = f"    Model    [bold]{_esc(p.model or 'not set')}[/bold]"
     if p.provider:
-        model_line += f"  [dim]via {p.provider}[/dim]"
+        model_line += f"  [dim]via {_esc(p.provider)}[/dim]"
     lines.append(model_line)
 
     if p.base_url:
-        lines.append(f"    Backend  [dim]{p.base_url}[/dim]  {_status_dot(p.server_status)}")
+        lines.append(f"    Backend  [dim]{_esc(p.base_url)}[/dim]  {_status_dot(p.server_status)}")
     if p.context_length:
         lines.append(f"    Context  [dim]{p.context_length:,} tokens[/dim]")
     if p.skin:
-        lines.append(f"    Skin     [dim]{p.skin}[/dim]")
+        lines.append(f"    Skin     [dim]{_esc(p.skin)}[/dim]")
 
     # ── Personality ──
     if p.soul_summary:
         summary = p.soul_summary
         if len(summary) > 80:
             summary = summary[:77] + "..."
-        lines.append(f"    Soul     [italic dim]{summary}[/italic dim]")
+        lines.append(f"    Soul     [italic dim]{_esc(summary)}[/italic dim]")
 
     lines.append("")
 
@@ -151,13 +151,13 @@ def _render_profile_card(p: ProfileInfo) -> str:
     # ── Toolsets ──
     if p.toolsets:
         ts_display = ", ".join(p.toolsets)
-        lines.append(f"    Toolsets  [dim]{ts_display}[/dim]")
+        lines.append(f"    Toolsets  [dim]{_esc(ts_display)}[/dim]")
 
     # ── Compression ──
     if p.compression_enabled:
         comp = f"[green]on[/green]"
         if p.compression_model:
-            comp += f"  [dim]{p.compression_model}[/dim]"
+            comp += f"  [dim]{_esc(p.compression_model)}[/dim]"
         lines.append(f"    Compress  {comp}")
 
     # ── Services ──
@@ -169,11 +169,11 @@ def _render_profile_card(p: ProfileInfo) -> str:
     # ── API Keys ──
     if p.api_keys:
         keys_str = ", ".join(p.api_keys)
-        lines.append(f"    Keys     [dim]{keys_str}[/dim]")
+        lines.append(f"    Keys     [dim]{_esc(keys_str)}[/dim]")
 
     # ── Alias ──
     if p.has_alias:
-        lines.append(f"    Alias    [green]{p.name}[/green]  [dim](on PATH)[/dim]")
+        lines.append(f"    Alias    [green]{_esc(p.name)}[/green]  [dim](on PATH)[/dim]")
 
     return "\n".join(lines)
 

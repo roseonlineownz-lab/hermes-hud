@@ -155,28 +155,37 @@ def collect_projects(projects_dir: str | None = None) -> ProjectsState:
         projects_dir = default_projects_dir(projects_dir)
 
     projects_path = Path(projects_dir)
-    if not projects_path.exists():
+    try:
+        entries = sorted(projects_path.iterdir())
+    except OSError:
+        # Missing, not a directory, or unreadable
         return ProjectsState(projects_dir=projects_dir)
 
     projects: list[ProjectInfo] = []
 
-    for item in sorted(projects_path.iterdir()):
+    for item in entries:
         if not item.is_dir():
             continue
         if item.name.startswith("."):
             continue
 
-        is_git = (item / ".git").is_dir()
-        proj = ProjectInfo(
-            name=item.name,
-            path=str(item),
-            is_git=is_git,
-            has_readme=(item / "README.md").exists() or (item / "readme.md").exists(),
-            has_package_json=(item / "package.json").exists(),
-            has_requirements=(item / "requirements.txt").exists(),
-            has_pyproject=(item / "pyproject.toml").exists(),
-            languages=_detect_languages(item),
-        )
+        # Probing children of an unreadable directory raises PermissionError
+        # (pathlib only swallows ENOENT-class errors, not EACCES)
+        try:
+            is_git = (item / ".git").is_dir()
+            proj = ProjectInfo(
+                name=item.name,
+                path=str(item),
+                is_git=is_git,
+                has_readme=(item / "README.md").exists() or (item / "readme.md").exists(),
+                has_package_json=(item / "package.json").exists(),
+                has_requirements=(item / "requirements.txt").exists(),
+                has_pyproject=(item / "pyproject.toml").exists(),
+                languages=_detect_languages(item),
+            )
+        except OSError:
+            projects.append(ProjectInfo(name=item.name, path=str(item)))
+            continue
 
         # Get directory mtime
         try:
